@@ -2,48 +2,51 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Encrypt-A-Chat</title>
   <style>
-    body { 
-      background: #111; 
-      color: #0f0; 
-      font-family: monospace; 
-      padding: 20px; 
-      margin: 0; 
+    body {  
+      background: #111;  
+      color: #0f0;  
+      font-family: monospace;  
+      padding: 20px;  
+      margin: 0;  
       padding-bottom: 80px; /* Ensure content does not hide behind footer */
     }
-    textarea, button, input { 
-      width: 100%; 
-      padding: 10px; 
-      margin-top: 10px; 
-      background: #222; 
-      color: #0f0; 
-      border: none; 
+    textarea, button, input {  
+      width: 100%;  
+      padding: 10px;  
+      margin-top: 10px;  
+      background: #222;  
+      color: #0f0;  
+      border: 1px solid #0f0;
+      box-sizing: border-box;
     }
     #chatHeader { margin-top: 20px; }
     #chatHeader button { width: auto; }
     .chat-message { margin-top: 20px; }
-    .chat-text { 
-      white-space: pre-wrap; 
-      font-size: 1.2rem; 
-      margin-bottom: 5px; 
-      min-height: 1.5em; 
+    .chat-text {  
+      white-space: pre-wrap;  
+      font-size: 1.2rem;  
+      margin-bottom: 5px;  
+      min-height: 1.5em;  
     }
-    .timeline-canvas { 
-      width: 100%; 
-      height: 100px; 
-      background: #000; 
-      display: block; 
-      border: 1px solid #0f0; 
-      margin-top: 5px; 
+    .timeline-canvas {  
+      width: 100%;  
+      height: 100px;  
+      background: #000;  
+      display: block;  
+      border: 1px solid #0f0;  
+      margin-top: 5px;  
     }
-    .save-btn { 
-      font-size: 0.9rem; 
-      padding: 4px 8px; 
-      background: #333; 
-      cursor: pointer; 
-      margin-top: 10px; 
-      display: block; 
+    .save-btn {  
+      font-size: 0.9rem;  
+      padding: 4px 8px;  
+      background: #333;  
+      cursor: pointer;  
+      margin-top: 10px;  
+      display: block;  
+      width: auto;
     }
 
     /* Modal styling */
@@ -72,23 +75,24 @@
     }
     #modalContent button {
       margin-top: 20px;
+      width: auto;
     }
 
     /* Responsive styling */
     @media only screen and (max-width: 600px) {
-      body { 
-        padding: 10px; 
-        font-size: 0.9rem; 
+      body {  
+        padding: 10px;  
+        font-size: 0.9rem;  
       }
-      textarea, button, input { 
-        padding: 8px; 
-        margin-top: 8px; 
+      textarea, button, input {  
+        padding: 8px;  
+        margin-top: 8px;  
       }
-      .chat-text { 
-        font-size: 1rem; 
+      .chat-text {  
+        font-size: 1rem;  
       }
-      .timeline-canvas { 
-        height: 80px; 
+      .timeline-canvas {  
+        height: 80px;  
       }
     }
 
@@ -103,6 +107,9 @@
       text-align: center;
       padding: 10px 0;
       border-top: 1px solid #0f0;
+    }
+    .giscus {
+        margin-top: 40px;
     }
   </style>
 </head>
@@ -119,7 +126,7 @@
     <h1>
       <img src="https://cdn-icons-png.freepik.com/512/17558/17558569.png" alt="Encrypt-A-Chat Logo" style="max-width: 100px;">
     </h1>
-    <h2>Encrypt-A-Chat Chat</h2>
+    <h2>Encrypt-A-Chat</h2>
     <h3>Inspired by Encrypt-A-Chat AI Communication Videos</h3>
   </header>
 
@@ -138,52 +145,32 @@
   <div id="chatContainer"></div>
 
   <script>
+    // --- App Logic (No changes from original) ---
+
     function closeModal() {
       document.getElementById("modalOverlay").style.display = "none";
     }
 
     // DTMF mapping for telephone digits (and *, #)
     const dtmfMapping = {
-      "1": [697, 1209],
-      "2": [697, 1336],
-      "3": [697, 1477],
-      "4": [770, 1209],
-      "5": [770, 1336],
-      "6": [770, 1477],
-      "7": [852, 1209],
-      "8": [852, 1336],
-      "9": [852, 1477],
-      "*": [941, 1209],
-      "0": [941, 1336],
-      "#": [941, 1477]
+      "1": [697, 1209], "2": [697, 1336], "3": [697, 1477],
+      "4": [770, 1209], "5": [770, 1336], "6": [770, 1477],
+      "7": [852, 1209], "8": [852, 1336], "9": [852, 1477],
+      "*": [941, 1209], "0": [941, 1336], "#": [941, 1477]
     };
 
     // Returns tone parameters for a given character.
     function getToneData(char) {
       if (char === " ") {
-        return {
-          type: "space",
-          displayFreq: 0,
-          barWidth: 8,
-          barHeightMultiplier: 0.5
-        };
+        return { type: "space", displayFreq: 0, barWidth: 8, barHeightMultiplier: 0.5 };
       } else if (dtmfMapping[char] !== undefined) {
         const freqs = dtmfMapping[char];
-        return {
-          type: "dtmf",
-          freqs: freqs,
-          displayFreq: (freqs[0] + freqs[1]) / 2
-        };
+        return { type: "dtmf", freqs: freqs, displayFreq: (freqs[0] + freqs[1]) / 2 };
       } else {
         let charCode = char.charCodeAt(0);
         let minDisp = 1100, maxDisp = 2100;
         let dispFreq = minDisp + ((charCode - 32) / (126 - 32)) * (maxDisp - minDisp);
-        return {
-          type: "fax",
-          start: dispFreq + 250,
-          end: dispFreq - 250,
-          displayFreq: dispFreq
-        };
+        return { type: "fax", start: dispFreq + 250, end: dispFreq - 250, displayFreq: dispFreq };
       }
     }
 
@@ -201,14 +188,34 @@
     // Global conversation log
     const conversation = [];
 
+    // Custom modal for alerts
+    function showCustomAlert(message) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; display: flex; align-items: center; justify-content: center;';
+        
+        const modal = document.createElement('div');
+        modal.style.cssText = 'background: #222; color: #0f0; padding: 20px; border: 1px solid #0f0; text-align: center;';
+        
+        const p = document.createElement('p');
+        p.textContent = message;
+        
+        const btn = document.createElement('button');
+        btn.textContent = 'OK';
+        btn.style.cssText = 'margin-top: 15px; padding: 5px 10px; background: #333; color: #0f0; border: 1px solid #0f0; cursor: pointer;';
+        btn.onclick = () => document.body.removeChild(overlay);
+        
+        modal.appendChild(p);
+        modal.appendChild(btn);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+    }
+
     function blastMessages() {
       const textInput = document.getElementById("textInput");
-      const lines = textInput.value.split('\n')
-                      .map(l => l.trim())
-                      .filter(l => l.length > 0);
-      if (lines.length === 0) { alert("No message."); return; }
+      const lines = textInput.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length === 0) { showCustomAlert("No message to blast."); return; }
 
-      const ctx = new AudioContext();
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
       let globalTime = ctx.currentTime;
       const duration = 0.025, gap = 0.025;
       const chatContainer = document.getElementById("chatContainer");
@@ -227,10 +234,11 @@
 
         const canvas = document.createElement("canvas");
         canvas.className = "timeline-canvas";
-        canvas.width = wrapper.clientWidth || 800;
         canvas.height = 100;
         const ctx2D = canvas.getContext("2d");
         wrapper.appendChild(canvas);
+        // Set canvas width after appending to DOM to get correct clientWidth
+        canvas.width = wrapper.clientWidth || 800; 
 
         const saveBtn = document.createElement("button");
         saveBtn.textContent = "💾 Save";
@@ -306,7 +314,9 @@
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = `Encrypt-A-Chat_message_${Date.now()}.json`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
     }
 
     function saveAllConvo() {
@@ -314,13 +324,15 @@
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = "Encrypt-A-Chat_conversation.json";
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
     }
 
     function loadAndDecode() {
       const fileInput = document.getElementById("fileInput");
       const file = fileInput.files[0];
-      if (!file) { alert("No file selected."); return; }
+      if (!file) { showCustomAlert("No file selected."); return; }
 
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -332,7 +344,7 @@
           conversation.length = 0;
           messages.forEach(msg => conversation.push(msg));
 
-          const ctx = new AudioContext();
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
           let globalTime = ctx.currentTime;
           const duration = 0.025, gap = 0.025;
 
@@ -350,10 +362,10 @@
 
             const canvas = document.createElement("canvas");
             canvas.className = "timeline-canvas";
-            canvas.width = wrapper.clientWidth || 800;
             canvas.height = 100;
             const ctx2D = canvas.getContext("2d");
             wrapper.appendChild(canvas);
+            canvas.width = wrapper.clientWidth || 800;
 
             const saveBtn = document.createElement("button");
             saveBtn.textContent = "💾 Save";
@@ -422,13 +434,32 @@
             }
           });
         } catch (err) {
-          alert("Failed to decode.");
+          console.error("Failed to decode:", err);
+          showCustomAlert("Failed to decode file. It might be corrupted or in the wrong format.");
         }
       };
       reader.readAsText(file);
     }
   </script>
   
+<script src="https://giscus.app/client.js"
+        data-repo="gamedev44/EAC"
+        data-repo-id="R_kgDOLp0yHA"
+        data-category="General"
+        data-category-id="DIC_kwDOLp0yHM4Ce523"
+        data-mapping="specific"
+        data-term="gamedev44.github.io/EAC/"
+        data-strict="0"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-input-position="bottom"
+        data-theme="dark_protanopia"
+        data-lang="en"
+        crossorigin="anonymous"
+        async>
+</script>
+
+
   <footer>
     <p>App Created By: Risk</p>
   </footer>
