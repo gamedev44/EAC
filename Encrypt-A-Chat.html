@@ -11,7 +11,7 @@
       font-family: monospace;  
       padding: 20px;  
       margin: 0;  
-      padding-bottom: 80px; /* Ensure content does not hide behind footer */
+      padding-bottom: 120px; /* Ensure content does not hide behind footer or giscus */
     }
     textarea, button, input {  
       width: 100%;  
@@ -29,7 +29,10 @@
       white-space: pre-wrap;  
       font-size: 1.2rem;  
       margin-bottom: 5px;  
-      min-height: 1.5em;  
+      min-height: 1.5em;
+      border: 1px dashed #333;
+      padding: 10px;
+      background-color: #1a1a1a;
     }
     .timeline-canvas {  
       width: 100%;  
@@ -39,14 +42,15 @@
       border: 1px solid #0f0;  
       margin-top: 5px;  
     }
-    .save-btn {  
+    .action-btn {  
       font-size: 0.9rem;  
       padding: 4px 8px;  
       background: #333;  
       cursor: pointer;  
       margin-top: 10px;  
-      display: block;  
+      display: inline-block; 
       width: auto;
+      margin-right: 5px;
     }
 
     /* Modal styling */
@@ -110,6 +114,7 @@
     }
     .giscus {
         margin-top: 40px;
+        padding-bottom: 40px; /* Extra space so footer doesn't overlap giscus */
     }
   </style>
 </head>
@@ -117,8 +122,8 @@
   <!-- Modal -->
   <div id="modalOverlay">
     <div id="modalContent">
-      <p>This is an Encrypted chat app that is a faster secure form of text communications similar to morse using a system reminiscent of older dtmf codes.</p>
-      <button onclick="closeModal()">Close</button>
+      <p>Welcome to Encrypt-A-Chat! Type a message to generate a signal. You can then copy the plain text or an encrypted version to share with others via Giscus. To decode a message, paste the encrypted text into the input box and click 'Blast / Decode'.</p>
+      <button onclick="closeModal()">Got it!</button>
     </div>
   </div>
   
@@ -131,105 +136,96 @@
   </header>
 
   <!-- Input area for any printable character -->
-  <textarea id="textInput" placeholder="Type anything... symbols, casing, etc."></textarea>
-  <button onclick="blastMessages()">📡 Blast</button>
-  <input type="file" id="fileInput" accept=".json" />
-  <button onclick="loadAndDecode()">📥 Load & Decode</button>
+  <textarea id="textInput" placeholder="Type a message to send, or paste an encrypted message to decode..."></textarea>
+  <button onclick="handleInput()">📡 Blast / Decode</button>
+  <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="loadFile()"/>
+  <button onclick="document.getElementById('fileInput').click()">📥 Load from File</button>
 
   <!-- Save full conversation button -->
   <div id="chatHeader">
-    <button onclick="saveAllConvo()">💾 Save All</button>
+    <button onclick="saveAllConvo()">💾 Save All to File</button>
   </div>
 
   <!-- Chat container with each message and colored timeline graph -->
   <div id="chatContainer"></div>
 
   <script>
-    // --- App Logic (No changes from original) ---
+    // --- Configuration & Constants ---
+    const ENCRYPTION_PREFIX = 'EAC_DATA::';
+    const conversation = []; // Global conversation log
 
+    // --- Core App Logic ---
+
+    /**
+     * Closes the initial instruction modal.
+     */
     function closeModal() {
       document.getElementById("modalOverlay").style.display = "none";
     }
 
-    // DTMF mapping for telephone digits (and *, #)
-    const dtmfMapping = {
-      "1": [697, 1209], "2": [697, 1336], "3": [697, 1477],
-      "4": [770, 1209], "5": [770, 1336], "6": [770, 1477],
-      "7": [852, 1209], "8": [852, 1336], "9": [852, 1477],
-      "*": [941, 1209], "0": [941, 1336], "#": [941, 1477]
-    };
+    /**
+     * Determines if the input is plain text or an encrypted message and handles it.
+     */
+    function handleInput() {
+        const textInput = document.getElementById("textInput");
+        const inputText = textInput.value.trim();
 
-    // Returns tone parameters for a given character.
-    function getToneData(char) {
-      if (char === " ") {
-        return { type: "space", displayFreq: 0, barWidth: 8, barHeightMultiplier: 0.5 };
-      } else if (dtmfMapping[char] !== undefined) {
-        const freqs = dtmfMapping[char];
-        return { type: "dtmf", freqs: freqs, displayFreq: (freqs[0] + freqs[1]) / 2 };
-      } else {
-        let charCode = char.charCodeAt(0);
-        let minDisp = 1100, maxDisp = 2100;
-        let dispFreq = minDisp + ((charCode - 32) / (126 - 32)) * (maxDisp - minDisp);
-        return { type: "fax", start: dispFreq + 250, end: dispFreq - 250, displayFreq: dispFreq };
-      }
-    }
-
-    // Converts a line of text into an array of tone data objects.
-    function encodeLineToToneData(line) {
-      const tones = [];
-      for (let char of line) {
-        if (char.charCodeAt(0) >= 32 && char.charCodeAt(0) <= 126) {
-          tones.push(getToneData(char));
+        if (inputText.length === 0) {
+            showCustomAlert("Input is empty.");
+            return;
         }
-      }
-      return tones;
+
+        // Check if the input is an encrypted string
+        if (inputText.startsWith(ENCRYPTION_PREFIX)) {
+            try {
+                const encodedData = inputText.substring(ENCRYPTION_PREFIX.length);
+                const decodedJson = atob(encodedData);
+                const messageData = JSON.parse(decodedJson);
+                
+                // Check if the decoded data is a single message or a full conversation
+                if (Array.isArray(messageData)) { // It's a conversation
+                    messageData.forEach(msg => {
+                        conversation.push(msg);
+                        renderMessage(msg);
+                    });
+                } else { // It's a single message
+                    conversation.push(messageData);
+                    renderMessage(messageData);
+                }
+            } catch (e) {
+                console.error("Decoding failed:", e);
+                showCustomAlert("Could not decode message. The data may be corrupt or invalid.");
+            }
+        } else {
+            // Treat as new plain text message(s)
+            const lines = inputText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            lines.forEach(line => {
+                const toneDataArray = encodeLineToToneData(line);
+                const messageData = { text: line, tones: toneDataArray };
+                conversation.push(messageData);
+                renderMessage(messageData);
+            });
+        }
+        textInput.value = "";
     }
-
-    // Global conversation log
-    const conversation = [];
-
-    // Custom modal for alerts
-    function showCustomAlert(message) {
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; display: flex; align-items: center; justify-content: center;';
-        
-        const modal = document.createElement('div');
-        modal.style.cssText = 'background: #222; color: #0f0; padding: 20px; border: 1px solid #0f0; text-align: center;';
-        
-        const p = document.createElement('p');
-        p.textContent = message;
-        
-        const btn = document.createElement('button');
-        btn.textContent = 'OK';
-        btn.style.cssText = 'margin-top: 15px; padding: 5px 10px; background: #333; color: #0f0; border: 1px solid #0f0; cursor: pointer;';
-        btn.onclick = () => document.body.removeChild(overlay);
-        
-        modal.appendChild(p);
-        modal.appendChild(btn);
-        overlay.appendChild(modal);
-        document.body.appendChild(overlay);
-    }
-
-    function blastMessages() {
-      const textInput = document.getElementById("textInput");
-      const lines = textInput.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      if (lines.length === 0) { showCustomAlert("No message to blast."); return; }
-
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      let globalTime = ctx.currentTime;
-      const duration = 0.025, gap = 0.025;
-      const chatContainer = document.getElementById("chatContainer");
-
-      lines.forEach(line => {
-        const toneDataArray = encodeLineToToneData(line);
-        conversation.push({ text: line, tones: toneDataArray });
+    
+    /**
+     * Renders a single message object to the chat container, including visuals, audio, and buttons.
+     * @param {object} messageData - The message object, containing { text, tones }.
+     */
+    function renderMessage(messageData) {
+        const { text, tones } = messageData;
+        const chatContainer = document.getElementById("chatContainer");
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        let globalTime = ctx.currentTime;
+        const duration = 0.025, gap = 0.025;
 
         const wrapper = document.createElement("div");
         wrapper.className = "chat-message";
 
         const textElem = document.createElement("div");
         textElem.className = "chat-text";
-        textElem.textContent = "";
+        textElem.textContent = ""; // Will be populated character by character
         wrapper.appendChild(textElem);
 
         const canvas = document.createElement("canvas");
@@ -240,14 +236,29 @@
         // Set canvas width after appending to DOM to get correct clientWidth
         canvas.width = wrapper.clientWidth || 800; 
 
-        const saveBtn = document.createElement("button");
-        saveBtn.textContent = "💾 Save";
-        saveBtn.className = "save-btn";
-        saveBtn.onclick = () => saveSingleMessage(line, toneDataArray);
-        wrapper.appendChild(saveBtn);
+        // --- Action Buttons ---
+        const buttonContainer = document.createElement("div");
 
+        const copyPlainBtn = document.createElement("button");
+        copyPlainBtn.textContent = "📋 Copy Plain";
+        copyPlainBtn.className = "action-btn";
+        copyPlainBtn.onclick = () => copyToClipboard(text, copyPlainBtn);
+        buttonContainer.appendChild(copyPlainBtn);
+
+        const copyEncryptedBtn = document.createElement("button");
+        copyEncryptedBtn.textContent = "🔒 Copy Encrypted";
+        copyEncryptedBtn.className = "action-btn";
+        copyEncryptedBtn.onclick = () => {
+            const jsonString = JSON.stringify(messageData);
+            const encodedData = btoa(jsonString);
+            copyToClipboard(ENCRYPTION_PREFIX + encodedData, copyEncryptedBtn);
+        };
+        buttonContainer.appendChild(copyEncryptedBtn);
+        
+        wrapper.appendChild(buttonContainer);
         chatContainer.appendChild(wrapper);
 
+        // --- Animation and Audio Playback ---
         let barX = 0;
         const defaultBarWidth = 4;
         function drawBar(tone) {
@@ -269,9 +280,9 @@
           barX += currentBarWidth;
         }
 
-        for (let i = 0; i < toneDataArray.length; i++) {
-          const tone = toneDataArray[i];
-          const char = line[i];
+        for (let i = 0; i < tones.length; i++) {
+          const tone = tones[i];
+          const char = text[i];
           const delay = globalTime - ctx.currentTime;
 
           setTimeout(() => {
@@ -279,48 +290,122 @@
             drawBar(tone);
           }, delay * 1000);
 
-          if (tone.type === "dtmf") {
-            tone.freqs.forEach(freqValue => {
-              const osc = ctx.createOscillator();
-              const gain = ctx.createGain();
-              osc.frequency.value = freqValue;
-              osc.type = 'square';
-              gain.gain.value = 0.25;
-              osc.connect(gain);
-              gain.connect(ctx.destination);
-              osc.start(globalTime);
-              osc.stop(globalTime + duration);
-            });
-          } else if (tone.type === "fax") {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(tone.start, globalTime);
-            osc.frequency.linearRampToValueAtTime(tone.end, globalTime + duration);
-            gain.gain.value = 0.25;
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(globalTime);
-            osc.stop(globalTime + duration);
-          }
+          playTone(tone, globalTime, duration, ctx);
           globalTime += duration + gap;
         }
-      });
-      textInput.value = "";
     }
 
-    function saveSingleMessage(text, tones) {
-      const blob = new Blob([JSON.stringify({ text, tones })], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `Encrypt-A-Chat_message_${Date.now()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+
+    // --- Encoding/Decoding and Data Generation ---
+
+    const dtmfMapping = {
+      "1": [697, 1209], "2": [697, 1336], "3": [697, 1477],
+      "4": [770, 1209], "5": [770, 1336], "6": [770, 1477],
+      "7": [852, 1209], "8": [852, 1336], "9": [852, 1477],
+      "*": [941, 1209], "0": [941, 1336], "#": [941, 1477]
+    };
+
+    function getToneData(char) {
+      if (char === " ") {
+        return { type: "space", displayFreq: 0, barWidth: 8, barHeightMultiplier: 0.5 };
+      } else if (dtmfMapping[char] !== undefined) {
+        const freqs = dtmfMapping[char];
+        return { type: "dtmf", freqs: freqs, displayFreq: (freqs[0] + freqs[1]) / 2 };
+      } else {
+        let charCode = char.charCodeAt(0);
+        let minDisp = 1100, maxDisp = 2100;
+        let dispFreq = minDisp + ((charCode - 32) / (126 - 32)) * (maxDisp - minDisp);
+        return { type: "fax", start: dispFreq + 250, end: dispFreq - 250, displayFreq: dispFreq };
+      }
     }
 
+    function encodeLineToToneData(line) {
+      const tones = [];
+      for (let char of line) {
+        if (char.charCodeAt(0) >= 32 && char.charCodeAt(0) <= 126) {
+          tones.push(getToneData(char));
+        }
+      }
+      return tones;
+    }
+
+    function playTone(tone, startTime, duration, audioContext) {
+        if (tone.type === "dtmf") {
+            tone.freqs.forEach(freqValue => {
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.frequency.value = freqValue;
+                osc.type = 'square';
+                gain.gain.value = 0.25;
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            });
+        } else if (tone.type === "fax") {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(tone.start, startTime);
+            osc.frequency.linearRampToValueAtTime(tone.end, startTime + duration);
+            gain.gain.value = 0.25;
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        }
+    }
+
+
+    // --- Utility and Helper Functions ---
+
+    function showCustomAlert(message) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; display: flex; align-items: center; justify-content: center;';
+        const modal = document.createElement('div');
+        modal.style.cssText = 'background: #222; color: #0f0; padding: 20px; border: 1px solid #0f0; text-align: center;';
+        const p = document.createElement('p');
+        p.textContent = message;
+        const btn = document.createElement('button');
+        btn.textContent = 'OK';
+        btn.style.cssText = 'margin-top: 15px; padding: 5px 10px; background: #333; color: #0f0; border: 1px solid #0f0; cursor: pointer;';
+        btn.onclick = () => document.body.removeChild(overlay);
+        modal.appendChild(p);
+        modal.appendChild(btn);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+    }
+    
+    function copyToClipboard(text, buttonElement) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.top = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            const originalText = buttonElement.textContent;
+            buttonElement.textContent = 'Copied!';
+            buttonElement.style.color = '#ff0';
+            setTimeout(() => {
+                buttonElement.textContent = originalText;
+                buttonElement.style.color = '#0f0';
+            }, 2000);
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+            showCustomAlert('Failed to copy text.');
+        }
+        document.body.removeChild(textArea);
+    }
+
+    // --- File Operations ---
     function saveAllConvo() {
-      const blob = new Blob([JSON.stringify(conversation)], { type: "application/json" });
+      if (conversation.length === 0) {
+        showCustomAlert("Nothing to save.");
+        return;
+      }
+      const blob = new Blob([JSON.stringify(conversation, null, 2)], { type: "application/json" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = "Encrypt-A-Chat_conversation.json";
@@ -329,136 +414,50 @@
       document.body.removeChild(a);
     }
 
-    function loadAndDecode() {
+    function loadFile() {
       const fileInput = document.getElementById("fileInput");
       const file = fileInput.files[0];
-      if (!file) { showCustomAlert("No file selected."); return; }
+      if (!file) { return; }
 
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
           const data = JSON.parse(e.target.result);
           const messages = Array.isArray(data) ? data : [data];
-          const chatContainer = document.getElementById("chatContainer");
-          chatContainer.innerHTML = "";
+          document.getElementById("chatContainer").innerHTML = ""; // Clear existing chat
           conversation.length = 0;
-          messages.forEach(msg => conversation.push(msg));
-
-          const ctx = new (window.AudioContext || window.webkitAudioContext)();
-          let globalTime = ctx.currentTime;
-          const duration = 0.025, gap = 0.025;
-
           messages.forEach(msg => {
-            const line = msg.text;
-            const toneDataArray = msg.tones;
-
-            const wrapper = document.createElement("div");
-            wrapper.className = "chat-message";
-
-            const textElem = document.createElement("div");
-            textElem.className = "chat-text";
-            textElem.textContent = "";
-            wrapper.appendChild(textElem);
-
-            const canvas = document.createElement("canvas");
-            canvas.className = "timeline-canvas";
-            canvas.height = 100;
-            const ctx2D = canvas.getContext("2d");
-            wrapper.appendChild(canvas);
-            canvas.width = wrapper.clientWidth || 800;
-
-            const saveBtn = document.createElement("button");
-            saveBtn.textContent = "💾 Save";
-            saveBtn.className = "save-btn";
-            saveBtn.onclick = () => saveSingleMessage(line, toneDataArray);
-            wrapper.appendChild(saveBtn);
-
-            chatContainer.appendChild(wrapper);
-
-            let barX = 0;
-            const defaultBarWidth = 4;
-            function drawBar(tone) {
-              const currentBarWidth = tone.type === "space" ? tone.barWidth : defaultBarWidth;
-              if (barX + currentBarWidth > canvas.width) {
-                ctx2D.clearRect(0, 0, canvas.width, canvas.height);
-                barX = 0;
-              }
-              if (tone.type === "space") {
-                const height = canvas.height * (tone.barHeightMultiplier || 0.5);
-                ctx2D.fillStyle = "grey";
-                ctx2D.fillRect(barX, canvas.height - height, currentBarWidth, height);
-              } else {
-                const height = (tone.displayFreq % 800) / 800 * canvas.height;
-                const hue = tone.displayFreq % 360;
-                ctx2D.fillStyle = `hsl(${hue}, 100%, 50%)`;
-                ctx2D.fillRect(barX, canvas.height - height, currentBarWidth, height);
-              }
-              barX += currentBarWidth;
-            }
-
-            for (let i = 0; i < toneDataArray.length; i++) {
-              const tone = toneDataArray[i];
-              const char = line[i];
-              const delay = globalTime - ctx.currentTime;
-
-              setTimeout(() => {
-                textElem.textContent += char;
-                drawBar(tone);
-              }, delay * 1000);
-
-              if (tone.type === "dtmf") {
-                tone.freqs.forEach(freqValue => {
-                  const osc = ctx.createOscillator();
-                  const gain = ctx.createGain();
-                  osc.frequency.value = freqValue;
-                  osc.type = 'square';
-                  gain.gain.value = 0.25;
-                  osc.connect(gain);
-                  gain.connect(ctx.destination);
-                  osc.start(globalTime);
-                  osc.stop(globalTime + duration);
-                });
-              } else if (tone.type === "fax") {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(tone.start, globalTime);
-                osc.frequency.linearRampToValueAtTime(tone.end, globalTime + duration);
-                gain.gain.value = 0.25;
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start(globalTime);
-                osc.stop(globalTime + duration);
-              }
-              globalTime += duration + gap;
-            }
+            conversation.push(msg);
+            renderMessage(msg);
           });
         } catch (err) {
-          console.error("Failed to decode:", err);
+          console.error("Failed to decode file:", err);
           showCustomAlert("Failed to decode file. It might be corrupted or in the wrong format.");
         }
       };
       reader.readAsText(file);
+      fileInput.value = ''; // Reset file input
     }
   </script>
   
-<script src="https://giscus.app/client.js"
-        data-repo="gamedev44/EAC"
-        data-repo-id="R_kgDOLp0yHA"
-        data-category="General"
-        data-category-id="DIC_kwDOLp0yHM4Ce523"
-        data-mapping="specific"
-        data-term="gamedev44.github.io/EAC/"
-        data-strict="0"
-        data-reactions-enabled="1"
-        data-emit-metadata="0"
-        data-input-position="bottom"
-        data-theme="dark_protanopia"
-        data-lang="en"
-        crossorigin="anonymous"
-        async>
-</script>
-
+  <div class="giscus">
+    <script src="https://giscus.app/client.js"
+          data-repo="gamedev44/EAC"
+          data-repo-id="R_kgDOLp0yHA"
+          data-category="General"
+          data-category-id="DIC_kwDOLp0yHM4Ce523"
+          data-mapping="specific"
+          data-term="gamedev44.github.io/EAC/"
+          data-strict="0"
+          data-reactions-enabled="1"
+          data-emit-metadata="0"
+          data-input-position="bottom"
+          data-theme="dark_protanopia"
+          data-lang="en"
+          crossorigin="anonymous"
+          async>
+    </script>
+  </div>
 
   <footer>
     <p>App Created By: Risk</p>
