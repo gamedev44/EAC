@@ -53,35 +53,6 @@
       margin-right: 5px;
     }
 
-    /* Modal styling */
-    #modalOverlay {
-      display: block;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      z-index: 1000;
-    }
-    #modalContent {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #222;
-      color: #0f0;
-      padding: 20px;
-      border: 1px solid #0f0;
-      max-width: 90%;
-      text-align: center;
-      z-index: 1001;
-    }
-    #modalContent button {
-      margin-top: 20px;
-      width: auto;
-    }
-
     /* Responsive styling */
     @media only screen and (max-width: 600px) {
       body {  
@@ -119,13 +90,6 @@
   </style>
 </head>
 <body>
-  <!-- Modal -->
-  <div id="modalOverlay">
-    <div id="modalContent">
-      <p>Welcome to Encrypt-A-Chat! Type a message to generate a signal. You can then copy the plain text or an encrypted version to share with others via Giscus. To decode a message, paste the encrypted text into the input box and click 'Blast / Decode'.</p>
-      <button onclick="closeModal()">Got it!</button>
-    </div>
-  </div>
   
   <header>
     <h1>
