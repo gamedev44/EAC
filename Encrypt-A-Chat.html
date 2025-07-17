@@ -23,7 +23,7 @@
       box-sizing: border-box;
     }
     #chatHeader { margin-top: 20px; }
-    #chatHeader button { width: auto; }
+    #chatHeader button { width: auto; margin-right: 5px; }
     .chat-message { margin-top: 20px; }
     .chat-text {  
       white-space: pre-wrap;  
@@ -141,9 +141,10 @@
   <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="loadFile()"/>
   <button onclick="document.getElementById('fileInput').click()">📥 Load from File</button>
 
-  <!-- Save full conversation button -->
+  <!-- Action buttons -->
   <div id="chatHeader">
     <button onclick="saveAllConvo()">💾 Save All to File</button>
+    <button onclick="refreshGiscus()">🔄 Refresh Comments</button>
   </div>
 
   <!-- Chat container with each message and colored timeline graph -->
@@ -438,6 +439,40 @@
       reader.readAsText(file);
       fileInput.value = ''; // Reset file input
     }
+
+    // --- Giscus Refresh Logic ---
+    let giscusScriptHTML = ''; // Will hold the initial script tag HTML
+
+    /**
+     * Reloads the Giscus component by removing and re-adding its script tag.
+     * This function is globally accessible for the button's onclick.
+     */
+    function refreshGiscus() {
+        const giscusContainer = document.querySelector('.giscus');
+        if (giscusContainer && giscusScriptHTML) {
+            giscusContainer.innerHTML = ''; // Clear the container
+            // Re-adding the script from the stored HTML will cause the browser to re-execute it
+            setTimeout(() => {
+                giscusContainer.innerHTML = giscusScriptHTML;
+            }, 100);
+        }
+    }
+
+    // Wait for the entire page to load before setting up the refresh logic.
+    // This prevents the "cannot read properties of null" error.
+    window.addEventListener('load', () => {
+        const giscusContainer = document.querySelector('.giscus');
+        if (giscusContainer) {
+            // Store the initial state of the giscus script container
+            giscusScriptHTML = giscusContainer.innerHTML;
+            
+            // Automatically refresh the Giscus comments every 60 seconds
+            setInterval(refreshGiscus, 60000);
+        } else {
+            console.error("Giscus container not found. Auto-refresh will not work.");
+        }
+    });
+
   </script>
   
   <div class="giscus">
@@ -456,7 +491,7 @@
         data-loading="lazy"
         crossorigin="anonymous"
         async>
-</script>
+    </script>
   </div>
 
   <footer>
