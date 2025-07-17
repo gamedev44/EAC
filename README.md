@@ -11,7 +11,7 @@ Encode your text into a unique audio‑visual signal. Communicate in plain sight
 
 ✨ **Live Version**
 Experience Encrypt‑A‑Chat live right in your browser. No installation required!
-➡️ [Launch Encrypt‑A‑Chat](https://gamedev44.github.io/EAC/)
+# ➡️ [Launch Encrypt‑A‑Chat](https://gamedev44.github.io/EAC/)
 
 ---
 
