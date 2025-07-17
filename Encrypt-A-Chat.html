@@ -144,7 +144,7 @@
   <!-- Action buttons -->
   <div id="chatHeader">
     <button onclick="saveAllConvo()">💾 Save All to File</button>
-    <button onclick="refreshGiscus()">🔄 Refresh Comments</button>
+    <button onclick="location.reload()">🔄 Refresh Comments</button>
   </div>
 
   <!-- Chat container with each message and colored timeline graph -->
@@ -152,7 +152,7 @@
 
   <script>
     // --- Configuration & Constants ---
-    const ENCRYPTION_PREFIX = '007::'; // Changed prefix
+    const ENCRYPTION_PREFIX = '007::';
     const conversation = []; // Global conversation log
 
     // --- Core App Logic ---
@@ -442,38 +442,38 @@
       fileInput.value = ''; // Reset file input
     }
 
-    // --- Giscus Refresh Logic ---
-    let giscusScriptHTML = ''; // Will hold the initial script tag HTML
+    // --- Smart Auto-Refresh Logic ---
+    let userIsActive = false;
+    let activityTimeout;
 
-    /**
-     * Reloads the Giscus component by removing and re-adding its script tag.
-     * This function is globally accessible for the button's onclick.
-     */
-    function refreshGiscus() {
-        const giscusContainer = document.querySelector('.giscus');
-        if (giscusContainer && giscusScriptHTML) {
-            giscusContainer.innerHTML = ''; // Clear the container
-            // Re-adding the script from the stored HTML will cause the browser to re-execute it
-            setTimeout(() => {
-                giscusContainer.innerHTML = giscusScriptHTML;
-            }, 100);
-        }
+    function setUserActive() {
+        userIsActive = true;
+        clearTimeout(activityTimeout);
+        // User is considered inactive after 15 seconds of no interaction
+        activityTimeout = setTimeout(() => {
+            userIsActive = false;
+        }, 15000); 
     }
 
-    // Wait for the entire page to load before setting up the refresh logic.
-    // This prevents the "cannot read properties of null" error.
-    window.addEventListener('load', () => {
-        const giscusContainer = document.querySelector('.giscus');
-        if (giscusContainer) {
-            // Store the initial state of the giscus script container
-            giscusScriptHTML = giscusContainer.innerHTML;
-            
-            // Automatically refresh the Giscus comments every 60 seconds
-            setInterval(refreshGiscus, 60000);
-        } else {
-            console.error("Giscus container not found. Auto-refresh will not work.");
+    // Listen for common user interactions
+    window.addEventListener('mousemove', setUserActive);
+    window.addEventListener('mousedown', setUserActive);
+    window.addEventListener('keydown', setUserActive);
+    window.addEventListener('scroll', setUserActive);
+    window.addEventListener('touchstart', setUserActive);
+
+    // Set initial state on load
+    setUserActive();
+
+    // Automatically refresh the page every 60 seconds ONLY if the user is inactive
+    setInterval(() => {
+        // Also check if the user is currently typing in the main input box
+        const isTyping = document.activeElement === document.getElementById('textInput');
+        
+        if (!userIsActive && !isTyping) {
+            location.reload();
         }
-    });
+    }, 60000); // Check every 60 seconds
 
   </script>
   
