@@ -449,10 +449,10 @@
     function setUserActive() {
         userIsActive = true;
         clearTimeout(activityTimeout);
-        // User is considered inactive after 15 seconds of no interaction
+        // User is considered inactive after 2 seconds of no interaction
         activityTimeout = setTimeout(() => {
             userIsActive = false;
-        }, 15000); 
+        }, 2000); 
     }
 
     // Listen for common user interactions
@@ -465,7 +465,7 @@
     // Set initial state on load
     setUserActive();
 
-    // Automatically refresh the page every 60 seconds ONLY if the user is inactive
+    // Automatically refresh the page every 10 seconds ONLY if the user is inactive
     setInterval(() => {
         // Also check if the user is currently typing in the main input box
         const isTyping = document.activeElement === document.getElementById('textInput');
@@ -473,7 +473,7 @@
         if (!userIsActive && !isTyping) {
             location.reload();
         }
-    }, 60000); // Check every 60 seconds
+    }, 10000); // Check every 60 seconds
 
   </script>
   
