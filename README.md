@@ -1,4 +1,4 @@
-📡 Encrypt-A-Chat
+# 📡 Encrypt-A-Chat
 Encode your text into a unique audio-visual signal. Communicate in plain sight.
 
 ✨ Live Version
@@ -6,10 +6,10 @@ Experience Encrypt-A-Chat live right in your browser. No installation required!
 
 ➡️ Launch Encrypt-A-Chat
 
-01000011 01101111 01101110 01100011 01100101 01110000 01110100
+## 01000011 01101111 01101110 01100011 01100101 01110000 01110100
 ———————————
+## (The Concept)
 
-(The Concept)
 Encrypt-A-Chat is not a traditional encryption tool; it's a new form of secure communication inspired by the way machines talk. It transforms any text into a unique sequence of DTMF (telephone tones) and frequency-shift keying (modem sounds), creating a distinct audio-visual "signal" for each message.
 
 This signal can be saved, or shared as an encrypted text string. Only another user with the Encrypt-A-Chat app can decode the string back into its original message, complete with the original sounds and visuals.
