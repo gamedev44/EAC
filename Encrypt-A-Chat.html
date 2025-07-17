@@ -152,7 +152,7 @@
 
   <script>
     // --- Configuration & Constants ---
-    const ENCRYPTION_PREFIX = 'EAC_DATA::';
+    const ENCRYPTION_PREFIX = '007::'; // Changed prefix
     const conversation = []; // Global conversation log
 
     // --- Core App Logic ---
@@ -169,21 +169,23 @@
      */
     function handleInput() {
         const textInput = document.getElementById("textInput");
-        const inputText = textInput.value.trim();
+        const inputText = textInput.value; // Get the raw value to find the index
 
-        if (inputText.length === 0) {
+        if (inputText.trim().length === 0) {
             showCustomAlert("Input is empty.");
             return;
         }
 
-        // Check if the input is an encrypted string
-        if (inputText.startsWith(ENCRYPTION_PREFIX)) {
+        const encryptionIndex = inputText.indexOf(ENCRYPTION_PREFIX);
+
+        // If an encrypted block is found anywhere in the text, prioritize it
+        if (encryptionIndex !== -1) {
+            const encryptedBlock = inputText.substring(encryptionIndex);
             try {
-                const encodedData = inputText.substring(ENCRYPTION_PREFIX.length);
+                const encodedData = encryptedBlock.substring(ENCRYPTION_PREFIX.length);
                 const decodedJson = atob(encodedData);
                 const messageData = JSON.parse(decodedJson);
                 
-                // Check if the decoded data is a single message or a full conversation
                 if (Array.isArray(messageData)) { // It's a conversation
                     messageData.forEach(msg => {
                         conversation.push(msg);
@@ -197,9 +199,8 @@
                 console.error("Decoding failed:", e);
                 showCustomAlert("Could not decode message. The data may be corrupt or invalid.");
             }
-        } else {
-            // Treat as new plain text message(s)
-            const lines = inputText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        } else { // No encrypted block found, treat the entire input as new plain text
+            const lines = inputText.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0);
             lines.forEach(line => {
                 const toneDataArray = encodeLineToToneData(line);
                 const messageData = { text: line, tones: toneDataArray };
@@ -207,7 +208,8 @@
                 renderMessage(messageData);
             });
         }
-        textInput.value = "";
+        
+        textInput.value = ""; // Clear the input after processing
     }
     
     /**
