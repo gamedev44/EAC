@@ -1,7 +1,6 @@
 # 📡 Encrypt‑A‑Chat
 
 ![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen?style=for-the-badge)
-![GitHub Pages](https://img.shields.io/github/pages/build-status/gamedev44/EAC?label=Pages\&style=for-the-badge\&logo=github)
 ![Discussions](https://img.shields.io/github/discussions/gamedev44/EAC?label=Community\&style=for-the-badge\&logo=github)
 ![Last Commit](https://img.shields.io/github/last-commit/gamedev44/EAC?style=for-the-badge)
 ![License: MIT](https://img.shields.io/github/license/gamedev44/EAC?style=for-the-badge)
